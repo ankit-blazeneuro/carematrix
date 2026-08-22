@@ -4,8 +4,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function Navbar() {
   return (
-    <div className="w-full px-6 pt-5">
-      <nav className="flex items-center justify-between px-6 py-3 rounded-xl bg-background/60 backdrop-blur-md shadow-sm">
+    <div className="w-full flex justify-center px-6 pt-5">
+      <nav className="w-full max-w-3xl flex items-center justify-between px-6 py-3 rounded-xl bg-background/60 backdrop-blur-md shadow-sm">
         {/* Logo - Left */}
         <Link href="/" className="flex items-center gap-2">
           <span className="text-xl font-bold tracking-tight text-foreground">
