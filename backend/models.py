@@ -40,6 +40,7 @@ class TransferCreateRequest(BaseModel):
 
 class TransferCreateResponse(BaseModel):
     id: str
+    patient_id: Optional[str] = None
     status: str
 
 class TransferRespondRequest(BaseModel):

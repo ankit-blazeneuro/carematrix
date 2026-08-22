@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useHospital, KNOWN_HOSPITALS } from "@/context/HospitalContext";
 import { PatientTransfer, RegisteredPatient, AdmittedRecord, SurgeAlert } from "@/types";
 import { api } from "@/lib/api";
-import { useWebSocket } from "@/hooks/useWebSocket";
 import { NeobrutalistButton } from "@/components/NeobrutalistButton";
 import {
   UserPlus,
@@ -82,7 +81,7 @@ export default function DashboardPage() {
     if (!hospitalId) return;
     setIsLoading(true);
     try {
-      const open = await api.getOpenRequests();
+      const open = await api.getOpenRequests(undefined, hospitalId);
       const openIds = new Set(open.map((r) => r.id));
 
       setTransfers((prev) =>
@@ -216,73 +215,6 @@ export default function DashboardPage() {
     return () => clearInterval(iv);
   }, []);
 
-  // WebSockets Real-time Handler
-  useWebSocket("transfers", (event, data) => {
-    if (event === "TRANSFER_BROADCAST" || event === "new_transfer") {
-      const sourceHospId = data.hospital_id || data.requester_hospital_id;
-      const sourceHospName =
-        data.hospital_name ||
-        data.requester_hospital_name ||
-        KNOWN_HOSPITALS[sourceHospId]?.name ||
-        "Regional Hospital Node";
-
-      if (!seenIds.current.has(data.id) && !ownPatientIds.current.has(data.id) && sourceHospId !== hospitalId) {
-        seenIds.current.add(data.id);
-        setTransfers((prev) => [
-          {
-            id: data.id,
-            department: data.department,
-            priority: data.priority,
-            requester_hospital_id: sourceHospId,
-            requester_hospital_name: sourceHospName,
-            hospital_name: sourceHospName,
-            status: "PENDING",
-            receivedAt: nowTime(),
-          },
-          ...prev,
-        ]);
-      }
-    } else if (event === "TRANSFER_RESPONSE") {
-      if (ownPatientIds.current.has(data.patient_id) && data.status === "accepted") {
-        const hName = KNOWN_HOSPITALS[data.hospital_id]?.name || `Facility (${data.hospital_id})`;
-        setRegistered((prev) =>
-          prev.map((p) => {
-            if (p.patientId !== data.patient_id) return p;
-            if (p.matches.some((m) => m.hospital_id === data.hospital_id)) return p;
-            return {
-              ...p,
-              matches: [...p.matches, { hospital_id: data.hospital_id, name: hName, decided: false }],
-            };
-          })
-        );
-      }
-    } else if (event === "TRANSFER_CONFIRMED") {
-      // Two-Way Confirmation Handshake Complete!
-      if (data.hospital_id === hospitalId) {
-        setTransfers((prev) =>
-          prev.map((r) => (r.id === data.patient_id ? { ...r, status: "CONFIRMED" } : r))
-        );
-        setTimeout(() => {
-          setTransfers((prev) => prev.filter((r) => r.id !== data.patient_id));
-        }, 4000);
-      }
-      if (ownPatientIds.current.has(data.patient_id)) {
-        setRegistered((prev) =>
-          prev.map((p) => (p.patientId === data.patient_id ? { ...p, confirmed: data.hospital_id } : p))
-        );
-      }
-    } else if (event === "TRANSFER_DENIED") {
-      if (data.hospital_id === hospitalId) {
-        setTransfers((prev) =>
-          prev.map((r) => (r.id === data.patient_id ? { ...r, status: "DENIED" } : r))
-        );
-        setTimeout(() => {
-          setTransfers((prev) => prev.filter((r) => r.id !== data.patient_id));
-        }, 4000);
-      }
-    }
-  });
-
   // Handle Form Input Change
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -349,11 +281,13 @@ export default function DashboardPage() {
       setTransfers((prev) =>
         prev.map((r) => (r.id === transfer.id ? { ...r, status: "ACCEPTED_PENDING" } : r))
       );
+      void pollOpenRequests();
     } else {
       await api.respondToPatient(transfer.id, hospitalId, "rejected").catch(() => {});
       setTransfers((prev) =>
         prev.map((r) => (r.id === transfer.id ? { ...r, status: "DECLINED" } : r))
       );
+      void pollOpenRequests();
       setTimeout(() => {
         setTransfers((prev) => prev.filter((r) => r.id !== transfer.id));
       }, 1500);

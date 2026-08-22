@@ -28,7 +28,7 @@ export interface PatientTransfer {
   requester_hospital_name?: string;
   hospital_name?: string;
   assigned?: number;
-  status: 'PENDING' | 'ACCEPTED_PENDING' | 'CONFIRMED' | 'DENIED' | 'DECLINED' | 'open' | 'fulfilled' | 'cancelled';
+  status: 'PENDING' | 'ACCEPTED_PENDING' | 'CONFIRMED' | 'DENIED' | 'DECLINED' | 'open' | 'accepted_pending' | 'fulfilled' | 'cancelled';
   created_at?: number;
   receivedAt?: string;
 }

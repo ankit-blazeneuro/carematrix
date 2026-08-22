@@ -109,6 +109,8 @@ def init_db():
             priority TEXT NOT NULL,
             lat DOUBLE PRECISION NOT NULL,
             lng DOUBLE PRECISION NOT NULL,
+            requester_hospital_id TEXT,
+            requester_hospital_name TEXT,
             assigned INTEGER DEFAULT 0,
             status TEXT DEFAULT 'open',
             created_at BIGINT NOT NULL
@@ -201,6 +203,8 @@ def init_db():
             priority TEXT NOT NULL,
             lat REAL NOT NULL,
             lng REAL NOT NULL,
+            requester_hospital_id TEXT,
+            requester_hospital_name TEXT,
             assigned INTEGER DEFAULT 0,
             status TEXT DEFAULT 'open',
             created_at INTEGER NOT NULL
@@ -262,6 +266,38 @@ def init_db():
             FOREIGN KEY (hospital_id) REFERENCES hospitals(id) ON DELETE CASCADE
         );
         """)
+
+    conn.commit()
+
+    # Lightweight migrations for existing local/demo databases.
+    cursor.execute("SELECT * FROM patients LIMIT 0")
+    patient_columns = {description[0] for description in cursor.description}
+    if "requester_hospital_id" not in patient_columns:
+        cursor.execute("ALTER TABLE patients ADD COLUMN requester_hospital_id TEXT")
+    if "requester_hospital_name" not in patient_columns:
+        cursor.execute("ALTER TABLE patients ADD COLUMN requester_hospital_name TEXT")
+
+    demo_hospitals = [
+        ("hospital123", "Sarvodaya General Hospital", 28.4450, 76.9970, "online"),
+        ("hospital321", "Global Care Medical Centre", 28.6329, 77.2195, "online"),
+        ("hospital456", "City Care Emergency Center", 28.4600, 77.0200, "online"),
+        ("hospital789", "Apex Health Institute", 28.4300, 76.9800, "online"),
+        ("hospital101", "Metro Critical Care", 28.4750, 77.0400, "online"),
+        ("hospital202", "LifeLine Trauma Center", 28.4150, 76.9500, "online"),
+    ]
+    for hospital in demo_hospitals:
+        cursor.execute("""
+        INSERT INTO hospitals (id, name, lat, lng, status)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT (id) DO NOTHING
+        """, hospital)
+
+    cursor.execute("""
+    UPDATE patients
+    SET requester_hospital_id = COALESCE(requester_hospital_id, 'hospital123'),
+        requester_hospital_name = COALESCE(requester_hospital_name, 'Sarvodaya General Hospital')
+    WHERE requester_hospital_id IS NULL OR requester_hospital_name IS NULL
+    """)
 
     conn.commit()
     conn.close()

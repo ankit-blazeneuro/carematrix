@@ -15,6 +15,7 @@ def seed_database():
     # 1. Hospitals Data
     hospitals = [
         ("hospital123", "Sarvodaya General Hospital", 28.4450, 76.9970, "online"),
+        ("hospital321", "Global Care Medical Centre", 28.6329, 77.2195, "online"),
         ("hospital456", "City Care Emergency Center", 28.4600, 77.0200, "online"),
         ("hospital789", "Apex Health Institute", 28.4300, 76.9800, "online"),
         ("hospital101", "Metro Critical Care", 28.4750, 77.0400, "online"),
@@ -89,11 +90,13 @@ def seed_database():
     # 4. Seed Open Patient Transfer Request
     now = int(time.time())
     cursor.execute("""
-    INSERT INTO patients (id, department, priority, lat, lng, assigned, status, created_at)
-    VALUES ('pt_seed_01', 'Emergency', 'High', 28.4550, 77.0050, 0, 'open', ?)
+    INSERT INTO patients (id, department, priority, lat, lng, requester_hospital_id, requester_hospital_name, assigned, status, created_at)
+    VALUES ('pt_seed_01', 'Emergency', 'High', 28.4550, 77.0050, 'hospital123', 'Sarvodaya General Hospital', 0, 'open', ?)
     ON CONFLICT (id) DO UPDATE SET
         department = EXCLUDED.department,
         priority = EXCLUDED.priority,
+        requester_hospital_id = EXCLUDED.requester_hospital_id,
+        requester_hospital_name = EXCLUDED.requester_hospital_name,
         status = EXCLUDED.status
     """, (now - 300,))
 

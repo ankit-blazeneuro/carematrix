@@ -25,6 +25,7 @@ async function fetchWithFallback<T>(
   try {
     const baseUrl = getApiBaseUrl();
     const res = await fetch(`${baseUrl}${endpoint}`, {
+      cache: "no-store",
       ...options,
       headers: { "Content-Type": "application/json", ...options?.headers },
     });
@@ -265,7 +266,7 @@ export const api = {
 
   // ── Patient Transfers ─────────────────────────────────────────────────────
   createPatientRequest: (department: string, priority: string, hospital_id?: string, hospital_name?: string) =>
-    fetchWithFallback<{ patient_id: string }>("/api/request", {
+    fetchWithFallback<{ id?: string; patient_id: string; status?: string }>("/api/request", {
       method: "POST",
       body: JSON.stringify({
         department,
@@ -290,7 +291,42 @@ export const api = {
       }),
     }, () => ({ id: `pt_${Math.random().toString(36).substring(2, 9)}`, status: "open" })),
 
-  getOpenRequests: (department?: string) =>
+  getOpenRequests: (department?: string, hospital_id?: string) => {
+    const params = new URLSearchParams();
+    if (department) params.set("department", department);
+    if (hospital_id) params.set("hospital_id", hospital_id);
+
+    return fetchWithFallback<PatientTransfer[]>(
+      `/api/hospital/open-requests${params.toString() ? `?${params.toString()}` : ""}`,
+      undefined,
+      () => [
+        {
+          id: "pt_req_9921",
+          department: "Emergency",
+          priority: "Critical",
+          lat: 28.61,
+          lng: 77.21,
+          requester_hospital_id: "hospital321",
+          requester_hospital_name: "Global Care Medical Centre",
+          status: "PENDING",
+          created_at: Date.now() - 120000,
+        },
+        {
+          id: "pt_req_8412",
+          department: "ICU",
+          priority: "High",
+          lat: 28.45,
+          lng: 77.02,
+          requester_hospital_id: "hospital456",
+          requester_hospital_name: "City Care Emergency Center",
+          status: "PENDING",
+          created_at: Date.now() - 340000,
+        },
+      ]
+    );
+  },
+
+  getOpenRequestsLegacy: (department?: string) =>
     fetchWithFallback<PatientTransfer[]>(
       `/api/hospital/open-requests${department ? `?department=${encodeURIComponent(department)}` : ""}`,
       undefined,
@@ -316,12 +352,28 @@ export const api = {
       ]
     ),
 
-  getOpenTransfers: (department?: string) =>
-    fetchWithFallback<PatientTransfer[]>(
-      `/api/hospital/open-requests${department ? `?department=${encodeURIComponent(department)}` : ""}`,
+  getOpenTransfers: (arg1?: string, arg2?: string) => {
+    let department: string | undefined;
+    let hospital_id: string | undefined;
+
+    if (arg1 && arg1.startsWith("hospital")) {
+      hospital_id = arg1;
+      department = arg2;
+    } else {
+      department = arg1;
+      hospital_id = arg2;
+    }
+
+    const params = new URLSearchParams();
+    if (department) params.set("department", department);
+    if (hospital_id) params.set("hospital_id", hospital_id);
+
+    return fetchWithFallback<PatientTransfer[]>(
+      `/api/hospital/open-requests${params.toString() ? `?${params.toString()}` : ""}`,
       undefined,
       () => []
-    ),
+    );
+  },
 
   respondToPatient: (patient_id: string, hospital_id: string, status: "accepted" | "rejected") =>
     fetchWithFallback<{ status: string }>("/api/hospital/respond", {

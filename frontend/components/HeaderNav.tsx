@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useHospital } from "@/context/HospitalContext";
-import { useWebSocket } from "@/hooks/useWebSocket";
 import { Activity, LogOut, Building2 } from "lucide-react";
 
 export function HeaderNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { hospitalId, hospitalName, location, shortCode, isAuthenticated, logout } = useHospital();
-  const { isConnected } = useWebSocket("transfers", () => {});
 
   if (pathname === "/login") {
     return null;
@@ -42,14 +40,10 @@ export function HeaderNav() {
             </span>
           </Link>
 
-          {/* Real-time Status Badge */}
-          <div
-            className={`hidden sm:flex neo-badge text-[10px] py-0.5 px-2 items-center gap-1.5 ${
-              isConnected ? "neo-badge-red" : "neo-badge-black"
-            }`}
-          >
+          {/* Transfer sync is API polling based for reliability. */}
+          <div className="hidden sm:flex neo-badge neo-badge-black text-[10px] py-0.5 px-2 items-center gap-1.5">
             <Activity className="w-3 h-3 animate-pulse" />
-            <span>{isConnected ? "LIVE MESH" : "ACTIVE SYNC"}</span>
+            <span>ACTIVE SYNC</span>
           </div>
         </div>
 

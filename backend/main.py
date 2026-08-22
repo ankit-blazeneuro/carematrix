@@ -218,10 +218,19 @@ async def create_transfer_request(req: TransferCreateRequest):
     cursor = conn.cursor()
     patient_id = f"pt_{uuid.uuid4().hex[:8]}"
     now = int(time.time())
+    hosp_id = req.hospital_id or "hospital123"
+    hosp_name = req.hospital_name or "Sarvodaya General Hospital"
+    lat = req.lat if req.lat is not None else 28.6
+    lng = req.lng if req.lng is not None else 77.1
 
     cursor.execute(
-        "INSERT INTO patients (id, department, priority, lat, lng, assigned, status, created_at) VALUES (?, ?, ?, ?, ?, 0, 'open', ?)",
-        (patient_id, req.department, req.priority, req.lat, req.lng, now)
+        """
+        INSERT INTO patients (
+            id, department, priority, lat, lng, requester_hospital_id,
+            requester_hospital_name, assigned, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 'open', ?)
+        """,
+        (patient_id, req.department, req.priority, lat, lng, hosp_id, hosp_name, now)
     )
     conn.commit()
     conn.close()
@@ -230,31 +239,42 @@ async def create_transfer_request(req: TransferCreateRequest):
     dispatch_patient_transfer(patient_id, req.department, req.priority)
 
     # Real-time WebSocket Broadcast
-    hosp_id = req.hospital_id or "hospital123"
-    hosp_name = req.hospital_name or "Sarvodaya General Hospital"
     broadcast_payload = {
         "id": patient_id,
         "department": req.department,
         "priority": req.priority,
         "hospital_id": hosp_id,
         "hospital_name": hosp_name,
-        "lat": req.lat or 28.6,
-        "lng": req.lng or 77.1,
+        "requester_hospital_id": hosp_id,
+        "requester_hospital_name": hosp_name,
+        "lat": lat,
+        "lng": lng,
         "created_at": now
     }
     await ws_manager.broadcast("transfers", "TRANSFER_BROADCAST", broadcast_payload)
 
-    return TransferCreateResponse(id=patient_id, status="open")
+    return {"id": patient_id, "patient_id": patient_id, "status": "open"}
 
 @app.get("/api/hospital/open-requests")
-async def get_open_requests(department: Optional[str] = None):
+async def get_open_requests(department: Optional[str] = None, hospital_id: Optional[str] = None):
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+    params = []
+    filters = ["status = 'open'"]
     if department:
-        cursor.execute("SELECT id, department, priority, lat, lng, assigned, status, created_at FROM patients WHERE status = 'open' AND department = ? ORDER BY created_at DESC", (department,))
-    else:
-        cursor.execute("SELECT id, department, priority, lat, lng, assigned, status, created_at FROM patients WHERE status = 'open' ORDER BY created_at DESC")
+        filters.append("department = ?")
+        params.append(department)
+    if hospital_id:
+        filters.append("COALESCE(requester_hospital_id, '') != ?")
+        params.append(hospital_id)
+
+    cursor.execute(f"""
+    SELECT id, department, priority, lat, lng, requester_hospital_id,
+           requester_hospital_name, assigned, status, created_at
+    FROM patients
+    WHERE {' AND '.join(filters)}
+    ORDER BY created_at DESC
+    """, tuple(params))
         
     rows = cursor.fetchall()
     conn.close()
@@ -266,6 +286,10 @@ async def get_open_requests(department: Optional[str] = None):
             "priority": r["priority"],
             "lat": r["lat"],
             "lng": r["lng"],
+            "requester_hospital_id": r["requester_hospital_id"],
+            "requester_hospital_name": r["requester_hospital_name"],
+            "hospital_id": r["requester_hospital_id"],
+            "hospital_name": r["requester_hospital_name"],
             "assigned": r["assigned"],
             "status": r["status"],
             "created_at": r["created_at"]
@@ -283,9 +307,9 @@ async def respond_to_transfer(req: TransferRespondRequest):
         (req.patient_id, req.hospital_id, req.status, now)
     )
 
-    # Permanently remove declined/rejected transfers from open state in DB
-    if req.status.lower() in ["rejected", "declined"]:
-        cursor.execute("UPDATE patients SET status = 'declined' WHERE id = ?", (req.patient_id,))
+    # An accepted response claims the open request so other hospitals stop seeing it.
+    if req.status.lower() == "accepted":
+        cursor.execute("UPDATE patients SET status = 'accepted_pending' WHERE id = ? AND status = 'open'", (req.patient_id,))
 
     conn.commit()
     conn.close()
@@ -351,6 +375,11 @@ async def select_transfer_match(req: TransferSelectRequest):
     # Mark patient as assigned
     cursor.execute("UPDATE patients SET assigned = 1, status = 'fulfilled' WHERE id = ?", (req.patient_id,))
 
+    cursor.execute("""
+    UPDATE responses SET status = 'confirmed'
+    WHERE patient_id = ? AND hospital_id = ? AND status = 'accepted'
+    """, (req.patient_id, req.hospital_id))
+
     # Record assignment
     cursor.execute("INSERT OR REPLACE INTO assignments (patient_id, hospital_id, timestamp) VALUES (?, ?, ?)",
                    (req.patient_id, req.hospital_id, now))
@@ -376,8 +405,11 @@ async def deny_transfer_response(req: TransferDenyRequest):
     UPDATE responses SET status = 'denied_by_source'
     WHERE patient_id = ? AND hospital_id = ?
     """, (req.patient_id, req.hospital_id))
-    
-    cursor.execute("UPDATE patients SET status = 'declined' WHERE id = ?", (req.patient_id,))
+
+    cursor.execute("SELECT 1 FROM responses WHERE patient_id = ? AND status = 'accepted' LIMIT 1", (req.patient_id,))
+    has_other_acceptance = cursor.fetchone()
+    if not has_other_acceptance:
+        cursor.execute("UPDATE patients SET status = 'open' WHERE id = ? AND status = 'accepted_pending'", (req.patient_id,))
 
     conn.commit()
     conn.close()
@@ -394,7 +426,12 @@ async def get_acceptance_status(patient_id: str, hospital_id: str):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT status FROM responses WHERE patient_id = ? AND hospital_id = ?", (patient_id, hospital_id))
+    cursor.execute("""
+    SELECT status FROM responses
+    WHERE patient_id = ? AND hospital_id = ?
+    ORDER BY timestamp DESC
+    LIMIT 1
+    """, (patient_id, hospital_id))
     row = cursor.fetchone()
     conn.close()
 
