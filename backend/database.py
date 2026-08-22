@@ -62,7 +62,7 @@ import sqlite3
 def get_db_connection():
     if IS_POSTGRES:
         try:
-            conn = psycopg2.connect(DB_URL, connect_timeout=3)
+            conn = psycopg2.connect(DB_URL, connect_timeout=1)
             return PostgresConnectionWrapper(conn)
         except Exception as e:
             logger.warning(f"PostgreSQL connection failed ({e}). Falling back to local SQLite 'carematrix.db'.")
@@ -71,7 +71,6 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA foreign_keys=ON;")
-    setattr(conn, "is_postgres", False)
     return conn
 
 
@@ -79,7 +78,7 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    if getattr(conn, "is_postgres", False):
+    if IS_POSTGRES and isinstance(conn, PostgresConnectionWrapper):
         # PostgreSQL schemas
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS hospitals (
@@ -265,7 +264,7 @@ def init_db():
 
     conn.commit()
     conn.close()
-    logger.info(f"Database initialized successfully ({'Neon PostgreSQL' if IS_POSTGRES else 'SQLite'}).")
+    logger.info(f"Database initialized successfully ({'Neon PostgreSQL' if IS_POSTGRES and isinstance(conn, PostgresConnectionWrapper) else 'SQLite'}).")
 
 
 def db_session():

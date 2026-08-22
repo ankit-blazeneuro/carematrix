@@ -10,7 +10,15 @@ import {
   SwytchcodeLog,
 } from "../types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+function getApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== "undefined") {
+    const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+    const host = window.location.hostname;
+    return `${protocol}//${host}:8000`;
+  }
+  return "http://localhost:8000";
+}
 
 async function fetchWithFallback<T>(
   endpoint: string,
@@ -18,7 +26,8 @@ async function fetchWithFallback<T>(
   mockFallback?: () => T
 ): Promise<T> {
   try {
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const baseUrl = getApiBaseUrl();
+    const res = await fetch(`${baseUrl}${endpoint}`, {
       ...options,
       headers: { "Content-Type": "application/json", ...options?.headers },
     });
