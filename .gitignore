@@ -32,6 +32,9 @@ backend/.venv
 backend/*.db
 backend/*.db-wal
 backend/*.db-shm
+backend/PridictionModel/models/*.pkl
+backend/PridictionModel/models/*.json
+backend/PridictionModel/logs/*
 
 # General
 .DS_Store

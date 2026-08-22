@@ -24,8 +24,19 @@ from swytchcode_integration import (
     get_swytchcode_status, get_swytchcode_logs
 )
 
+import os
+import PridictionModel.core as coree
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("carematrix.api")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+HOSPITAL_CSV = {
+    "hospital123": os.path.join(BASE_DIR, "PridictionModel", "data", "hospital123.csv"),
+    "hospital321": os.path.join(BASE_DIR, "PridictionModel", "data", "hospital321.csv"),
+    "hospital456": os.path.join(BASE_DIR, "PridictionModel", "data", "hospital123.csv"),
+    "hospital789": os.path.join(BASE_DIR, "PridictionModel", "data", "hospital321.csv")
+}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -402,32 +413,68 @@ async def select_resource_fulfillment(req: ResourceSelectRequest):
 # 4. ML & Analytics
 # ==========================================
 
-@app.post("/api/hospital/predict", response_model=PredictResponse)
+@app.post("/api/hospital/predict")
 async def predict_hospital_surge(req: PredictRequest):
+    csv_path = HOSPITAL_CSV.get(req.hospital_id)
+    if not csv_path or not os.path.exists(csv_path):
+        csv_path = os.path.join(BASE_DIR, "PridictionModel", "data", "hospital123.csv")
+
+    # Train model on hospital CSV
+    try:
+        coree.run_training(csv_path=csv_path)
+    except Exception as e:
+        logger.warning(f"Training on {csv_path} fallback: {e}")
+
+    # Fetch capacity info from DB
     conn = get_db_connection()
     cursor = conn.cursor()
-
     cursor.execute("SELECT SUM(total) as tot, SUM(available) as avail FROM capacity WHERE hospital_id = ?", (req.hospital_id,))
     row = cursor.fetchone()
     conn.close()
 
-    total_beds = row["tot"] or 100
-    avail_beds = row["avail"] or 20
+    total_beds = (row["tot"] if row and row["tot"] else 100)
+    avail_beds = (row["avail"] if row and row["avail"] else 20)
     occupied_beds = max(0, total_beds - avail_beds)
 
-    influx = ml_engine.predict_influx(req.date, req.temperature, req.aqi, req.rainfall)
-    analysis = ml_engine.calculate_wait_times(influx, total_beds, occupied_beds)
+    env_overrides = {
+        "temperature": req.temperature or 32.0,
+        "aqi": req.aqi or 160.0,
+        "rainfall": req.rainfall or 5.0
+    }
+    cap_overrides = {
+        "totalBeds": total_beds,
+        "bedsOccupied": occupied_beds
+    }
 
-    return PredictResponse(
-        hospital_id=req.hospital_id,
-        date=req.date,
-        predicted_influx=analysis["predicted_influx"],
-        bor_projected_pct=analysis["bor_projected_pct"],
-        status=analysis["status"],
-        ed_triage_breakdown=analysis["ed_triage_breakdown"],
-        simulated_wait_times_minutes=analysis["simulated_wait_times_minutes"],
-        total_wait_time_minutes=analysis["total_wait_time_minutes"]
+    full_res = coree.predict_one(
+        date_str=req.date,
+        env=env_overrides,
+        cap_override=cap_overrides
     )
+
+    pred = full_res["prediction"]
+    bor = full_res["bed_occupancy"]
+    ed = full_res["emergency_load"]
+    waits = full_res["waiting_times"]
+
+    return {
+        "hospital_id": req.hospital_id,
+        "date": req.date,
+        "predicted_influx": pred["predicted"],
+        "bor_projected_pct": bor["projected_bor_pct"],
+        "status": bor["status"].upper(),
+        "ed_triage_breakdown": ed["triage_split"],
+        "simulated_wait_times_minutes": {
+            "transport": waits["transport_min"],
+            "registration": waits["registration_min"],
+            "triage": waits["triage_min"],
+            "consultation": waits["consultation_min"],
+            "pharmacy": waits["pharmacy_min"],
+            "billing": waits["billing_min"]
+        },
+        "total_wait_time_minutes": waits["total_wait_min"],
+        "full_prediction_details": full_res
+    }
 
 @app.get("/api/heatmap")
 async def get_heatmap_data():
