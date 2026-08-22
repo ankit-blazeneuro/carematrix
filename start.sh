@@ -93,10 +93,10 @@ if [ -d "$FRONTEND_DIR" ] && [ -f "$FRONTEND_DIR/package.json" ]; then
     if [ -f "node_modules/.bin/next" ]; then
         echo -e "${BLUE}[*] Launching Frontend on http://localhost:3000 ...${NC}"
         if command -v bun &>/dev/null; then
-            bun run dev --port 3000 &
+            bun run dev -H 0.0.0.0 --port 3000 &
             FRONTEND_PID=$!
         elif command -v npm &>/dev/null; then
-            npm run dev --port 3000 &
+            npm run dev -- -H 0.0.0.0 -p 3000 &
             FRONTEND_PID=$!
         fi
         if [ -n "$FRONTEND_PID" ]; then

@@ -3,13 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 
 function getWsBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
   if (typeof window !== "undefined") {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.hostname;
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+
+    // If browser is accessing via remote LAN IP or custom domain, dynamically target backend on current host
+    if (host !== "localhost" && host !== "127.0.0.1") {
+      return `${protocol}//${host}:8000`;
+    }
+
+    if (process.env.NEXT_PUBLIC_WS_URL) {
+      return process.env.NEXT_PUBLIC_WS_URL;
+    }
+
     return `${protocol}//${host}:8000`;
   }
-  return "ws://localhost:8000";
+  return process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
 }
 
 export function useWebSocket(
@@ -32,6 +41,7 @@ export function useWebSocket(
     const connect = () => {
       try {
         const wsUrl = getWsBaseUrl();
+        console.log(`[CareMatrix WS] Connecting to ${wsUrl}/ws/${channel}`);
         const ws = new WebSocket(`${wsUrl}/ws/${channel}`);
         wsRef.current = ws;
 
@@ -49,22 +59,23 @@ export function useWebSocket(
           }
         };
 
-        ws.onerror = () => {
+        ws.onerror = (err) => {
+          console.warn(`[CareMatrix WS] Socket error on channel ${channel}:`, err);
           if (isMounted) setIsConnected(false);
         };
 
         ws.onclose = () => {
           if (isMounted) setIsConnected(false);
-          // Try reconnecting after 5 seconds
+          // Try reconnecting after 4 seconds
           reconnectTimeout = setTimeout(() => {
             if (isMounted) connect();
-          }, 5000);
+          }, 4000);
         };
       } catch (err) {
         if (isMounted) setIsConnected(false);
         reconnectTimeout = setTimeout(() => {
           if (isMounted) connect();
-        }, 5000);
+        }, 4000);
       }
     };
 
