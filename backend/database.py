@@ -67,9 +67,10 @@ def get_db_connection():
         except Exception as e:
             logger.warning(f"PostgreSQL connection failed ({e}). Falling back to local SQLite 'carematrix.db'.")
 
-    conn = sqlite3.connect("carematrix.db", check_same_thread=False)
+    conn = sqlite3.connect("carematrix.db", timeout=30.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA busy_timeout=30000;")
     conn.execute("PRAGMA foreign_keys=ON;")
     return conn
 

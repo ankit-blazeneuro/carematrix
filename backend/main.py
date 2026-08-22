@@ -282,6 +282,11 @@ async def respond_to_transfer(req: TransferRespondRequest):
         "INSERT INTO responses (patient_id, hospital_id, status, timestamp) VALUES (?, ?, ?, ?)",
         (req.patient_id, req.hospital_id, req.status, now)
     )
+
+    # Permanently remove declined/rejected transfers from open state in DB
+    if req.status.lower() in ["rejected", "declined"]:
+        cursor.execute("UPDATE patients SET status = 'declined' WHERE id = ?", (req.patient_id,))
+
     conn.commit()
     conn.close()
 
@@ -372,6 +377,8 @@ async def deny_transfer_response(req: TransferDenyRequest):
     WHERE patient_id = ? AND hospital_id = ?
     """, (req.patient_id, req.hospital_id))
     
+    cursor.execute("UPDATE patients SET status = 'declined' WHERE id = ?", (req.patient_id,))
+
     conn.commit()
     conn.close()
 
