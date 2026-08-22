@@ -6,7 +6,7 @@ import { CareMatrixLogo } from "@/components/logo";
 export default function Navbar() {
   return (
     <div className="w-full flex justify-center px-6 pt-5">
-      <nav className="w-full max-w-5xl flex items-center justify-between px-6 py-3 rounded-xl border border-border bg-background/60 backdrop-blur-md shadow-sm">
+      <nav className="w-full max-w-6xl flex items-center justify-between px-6 py-3 rounded-xl border border-border bg-background/60 backdrop-blur-md shadow-sm">
         {/* Logo - Left */}
         <Link href="/" aria-label="CareMatrix Home">
           <CareMatrixLogo className="w-8 h-8" />
