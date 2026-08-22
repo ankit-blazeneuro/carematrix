@@ -1,0 +1,39 @@
+{
+  "$schema": "https://swytchcode.com/schemas/tooling.json",
+  "version": "1.0.0",
+  "project": "carematrix-emergency-dispatcher",
+  "description": "Swytchcode execution layer for CareMatrix real-time hospital emergency dispatch and surge alerts",
+  "toolkits": [
+    "notifications",
+    "hospital-network",
+    "emergency-alerts"
+  ],
+  "methods": {
+    "carematrix.surge_alert.dispatch": {
+      "description": "Dispatches critical hospital surge alert when bed occupancy exceeds 85%",
+      "parameters": {
+        "hospital_id": "string",
+        "hospital_name": "string",
+        "occupancy_pct": "number",
+        "message": "string"
+      }
+    },
+    "carematrix.resource_request.dispatch": {
+      "description": "Dispatches medical supply resource request to network hospitals",
+      "parameters": {
+        "request_id": "string",
+        "requester_hospital_id": "string",
+        "resource_type": "string",
+        "quantity": "integer"
+      }
+    },
+    "carematrix.patient_transfer.dispatch": {
+      "description": "Broadcasting patient transfer request to network emergency centers",
+      "parameters": {
+        "patient_id": "string",
+        "department": "string",
+        "priority": "string"
+      }
+    }
+  }
+}

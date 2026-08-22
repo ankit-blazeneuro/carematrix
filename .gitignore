@@ -25,8 +25,9 @@ frontend/next-env.d.ts
 # Backend
 backend/node_modules
 backend/.env*
-backend/__pycache__
-backend/*.pyc
+backend/**/__pycache__
+**/__pycache__
+**/*.pyc
 backend/venv
 backend/.venv
 
@@ -34,3 +35,6 @@ backend/.venv
 .DS_Store
 *.pem
 .env*
+*.db
+*.db-journal
+*.sqlite
