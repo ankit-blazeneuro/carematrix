@@ -8,11 +8,8 @@ export default function Navbar() {
     <div className="w-full flex justify-center px-6 pt-5">
       <nav className="w-full max-w-5xl flex items-center justify-between px-6 py-3 rounded-xl bg-background/60 backdrop-blur-md shadow-sm">
         {/* Logo - Left */}
-        <Link href="/" className="flex items-center gap-2">
-          <CareMatrixLogo className="w-6 h-6 text-blue-600" />
-          <span className="text-xl font-bold tracking-tight text-foreground">
-            Care<span className="text-blue-600">Matrix</span>
-          </span>
+        <Link href="/" aria-label="CareMatrix Home">
+          <CareMatrixLogo className="w-8 h-8 text-blue-600" />
         </Link>
 
         {/* Right side */}
