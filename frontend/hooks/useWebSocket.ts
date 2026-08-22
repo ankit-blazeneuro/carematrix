@@ -4,19 +4,9 @@ import { useEffect, useRef, useState } from "react";
 
 function getWsBaseUrl(): string {
   if (typeof window !== "undefined") {
-    const host = window.location.hostname;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-
-    // If browser is accessing via remote LAN IP or custom domain, dynamically target backend on current host
-    if (host !== "localhost" && host !== "127.0.0.1") {
-      return `${protocol}//${host}:8000`;
-    }
-
-    if (process.env.NEXT_PUBLIC_WS_URL) {
-      return process.env.NEXT_PUBLIC_WS_URL;
-    }
-
-    return `${protocol}//${host}:8000`;
+    const host = window.location.host; // Contains host and port (e.g. 192.168.1.15:3000)
+    return `${protocol}//${host}`;
   }
   return process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
 }
@@ -41,8 +31,9 @@ export function useWebSocket(
     const connect = () => {
       try {
         const wsUrl = getWsBaseUrl();
-        console.log(`[CareMatrix WS] Connecting to ${wsUrl}/ws/${channel}`);
-        const ws = new WebSocket(`${wsUrl}/ws/${channel}`);
+        const fullUrl = `${wsUrl}/ws/${channel}`;
+        console.log(`[CareMatrix WS] Connecting to ${fullUrl}`);
+        const ws = new WebSocket(fullUrl);
         wsRef.current = ws;
 
         ws.onopen = () => {
