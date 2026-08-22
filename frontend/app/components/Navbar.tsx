@@ -9,7 +9,7 @@ export default function Navbar() {
       <nav className="w-full max-w-5xl flex items-center justify-between px-6 py-3 rounded-xl bg-background/60 backdrop-blur-md shadow-sm">
         {/* Logo - Left */}
         <Link href="/" aria-label="CareMatrix Home">
-          <CareMatrixLogo className="w-8 h-8 text-blue-600" />
+          <CareMatrixLogo className="w-8 h-8" />
         </Link>
 
         {/* Right side */}
