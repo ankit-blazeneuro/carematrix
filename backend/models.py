@@ -33,8 +33,10 @@ class HospitalInfoResponse(BaseModel):
 class TransferCreateRequest(BaseModel):
     department: str = Field(..., example="Emergency")
     priority: str = Field(..., example="High")  # "High", "Medium", "Low"
-    lat: float
-    lng: float
+    hospital_id: Optional[str] = None
+    hospital_name: Optional[str] = None
+    lat: Optional[float] = 28.6
+    lng: Optional[float] = 77.1
 
 class TransferCreateResponse(BaseModel):
     id: str

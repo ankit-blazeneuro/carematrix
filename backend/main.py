@@ -230,12 +230,16 @@ async def create_transfer_request(req: TransferCreateRequest):
     dispatch_patient_transfer(patient_id, req.department, req.priority)
 
     # Real-time WebSocket Broadcast
+    hosp_id = req.hospital_id or "hospital123"
+    hosp_name = req.hospital_name or "Sarvodaya General Hospital"
     broadcast_payload = {
         "id": patient_id,
         "department": req.department,
         "priority": req.priority,
-        "lat": req.lat,
-        "lng": req.lng,
+        "hospital_id": hosp_id,
+        "hospital_name": hosp_name,
+        "lat": req.lat or 28.6,
+        "lng": req.lng or 77.1,
         "created_at": now
     }
     await ws_manager.broadcast("transfers", "TRANSFER_BROADCAST", broadcast_payload)

@@ -38,6 +38,7 @@ if IS_POSTGRES:
     class PostgresConnectionWrapper:
         def __init__(self, conn):
             self._conn = conn
+            self.is_postgres = True
 
         def cursor(self):
             return PostgresCursorWrapper(self._conn.cursor(cursor_factory=RealDictCursor))
@@ -56,28 +57,29 @@ if IS_POSTGRES:
             cur.execute(query, params)
             return cur
 
-    def get_db_connection():
-        # Handle sslmode for Neon
-        url = DB_URL
-        conn = psycopg2.connect(url)
-        return PostgresConnectionWrapper(conn)
+import sqlite3
 
-else:
-    import sqlite3
+def get_db_connection():
+    if IS_POSTGRES:
+        try:
+            conn = psycopg2.connect(DB_URL, connect_timeout=3)
+            return PostgresConnectionWrapper(conn)
+        except Exception as e:
+            logger.warning(f"PostgreSQL connection failed ({e}). Falling back to local SQLite 'carematrix.db'.")
 
-    def get_db_connection():
-        conn = sqlite3.connect(DB_URL, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL;")
-        conn.execute("PRAGMA foreign_keys=ON;")
-        return conn
+    conn = sqlite3.connect("carematrix.db", check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA foreign_keys=ON;")
+    setattr(conn, "is_postgres", False)
+    return conn
 
 
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    if IS_POSTGRES:
+    if getattr(conn, "is_postgres", False):
         # PostgreSQL schemas
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS hospitals (

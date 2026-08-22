@@ -2,153 +2,147 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useHospital } from "@/context/HospitalContext";
-import { api } from "@/lib/api";
+import { useHospital, KNOWN_HOSPITALS } from "@/context/HospitalContext";
 import { NeobrutalistCard } from "@/components/NeobrutalistCard";
 import { NeobrutalistButton } from "@/components/NeobrutalistButton";
-import { Building2, ArrowRight } from "lucide-react";
-
-interface HospitalItem {
-  id: string;
-  name: string;
-  lat: number;
-  lng: number;
-  total_beds?: number;
-  available_beds?: number;
-  status: string;
-}
+import { Lock, ArrowRight, ShieldCheck, KeyRound, Building2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useHospital();
-  const [hospitals, setHospitals] = useState<HospitalItem[]>([]);
-  const [selectedId, setSelectedId] = useState("hospital123");
-  const [customId, setCustomId] = useState("");
+  const { login, isAuthenticated } = useHospital();
+
+  const [hospitalId, setHospitalId] = useState("hospital123");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const loadHospitals = async () => {
-      setIsLoading(true);
-      try {
-        const data = await api.getHospitals();
-        if (data && data.length > 0) {
-          setHospitals(data);
-          setSelectedId(data[0].id);
-        } else {
-          // Fallback if empty database
-          setHospitals([
-            { id: "hospital123", name: "Sarvodaya General Hospital", lat: 28.445, lng: 76.997, total_beds: 150, available_beds: 36, status: "online" },
-            { id: "hospital456", name: "City Care Emergency Center", lat: 28.46, lng: 77.02, total_beds: 115, available_beds: 51, status: "online" },
-            { id: "hospital789", name: "Apex Health Institute", lat: 28.43, lng: 76.98, total_beds: 190, available_beds: 19, status: "online" },
-          ]);
-        }
-      } catch (err) {
-        console.error("Failed to load hospitals:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadHospitals();
-  }, []);
+    if (isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, router]);
 
-  const handleSelectLogin = (hospital: HospitalItem) => {
-    login(hospital.id, hospital.name, hospital.lat, hospital.lng);
-    router.push("/dashboard");
-  };
-
-  const handleCustomLogin = (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customId.trim()) return;
-    login(customId.trim(), `Facility (${customId.trim()})`);
-    router.push("/dashboard");
+    setError("");
+
+    if (!hospitalId.trim()) {
+      setError("Hospital Node ID is required.");
+      return;
+    }
+
+    if (!password.trim()) {
+      setError("Password is required to access facility node.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    setTimeout(() => {
+      const res = login(hospitalId.trim(), password.trim());
+      setIsLoading(false);
+
+      if (res.success) {
+        router.push("/dashboard");
+      } else {
+        setError(res.error || "Authentication failed.");
+      }
+    }, 250);
   };
 
   return (
-    <div className="min-h-[85vh] flex flex-col items-center justify-center py-8">
-      <div className="w-full max-w-xl space-y-6">
-        {/* Header Title */}
+    <div className="min-h-[85vh] flex flex-col items-center justify-center py-6 px-4">
+      <div className="w-full max-w-md space-y-5">
+        
+        {/* Header Branding */}
         <div className="text-center space-y-2">
-          <div className="inline-block neo-badge neo-badge-red text-xs tracking-widest uppercase mb-1">
-            NETWORK AUTHENTICATION
+          <div className="inline-flex items-center gap-1.5 neo-badge neo-badge-red text-xs tracking-widest uppercase mb-1">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>SECURE FACILITY NODE ACCESS</span>
           </div>
           <h1 className="font-display text-4xl md:text-5xl font-bold uppercase tracking-tight text-[var(--ink)]">
-            SELECT FACILITY
+            CARE<span className="text-[var(--accent)]">MATRIX</span>
           </h1>
-          <p className="font-mono text-sm text-gray-700">
-            Identify your healthcare facility node connected to live Neon PostgreSQL.
+          <p className="font-mono text-xs text-gray-700 max-w-sm mx-auto">
+            Authorized personnel login. Enter facility Node ID and Password to authenticate.
           </p>
         </div>
 
-        {/* Real Facility Cards */}
-        <div className="space-y-3">
-          {hospitals.map((hospital) => {
-            const isSelected = selectedId === hospital.id;
-            return (
-              <div
-                key={hospital.id}
-                onClick={() => setSelectedId(hospital.id)}
-                className={`neo-card p-4 cursor-pointer transition-all ${
-                  isSelected
-                    ? "bg-white border-4 border-[var(--accent)] shadow-[5px_5px_0_var(--accent)] scale-101"
-                    : "bg-white hover:bg-neutral-50 border-3 border-[var(--ink)]"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-neutral-100 border-2 border-[var(--ink)] flex items-center justify-center shrink-0 mt-0.5">
-                      <Building2 className="w-5 h-5 text-[var(--ink)]" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-display text-lg font-bold uppercase text-[var(--ink)]">
-                          {hospital.name}
-                        </h3>
-                        <span className="neo-badge neo-badge-black text-[9px] py-0">
-                          {hospital.status.toUpperCase()}
-                        </span>
-                      </div>
-                      <span className="text-[11px] font-mono font-bold text-[var(--accent)] mt-1 block">
-                        NODE ID: {hospital.id} • {hospital.total_beds || 0} TOTAL BEDS ({hospital.available_beds || 0} AVAIL)
-                      </span>
-                    </div>
-                  </div>
+        {/* Credentials Form */}
+        <NeobrutalistCard className="bg-white border-4 border-[var(--ink)] space-y-4 p-5">
+          <div className="flex items-center justify-between border-b-2 border-[var(--ink)] pb-2.5">
+            <div className="flex items-center gap-2 font-display text-lg font-bold uppercase text-[var(--ink)]">
+              <Lock className="w-5 h-5 text-[var(--accent)]" />
+              <span>FACILITY AUTHENTICATION</span>
+            </div>
+            <span className="neo-badge neo-badge-black text-[9px]">ENCRYPTED</span>
+          </div>
 
-                  <NeobrutalistButton
-                    variant={isSelected ? "red" : "white"}
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelectLogin(hospital);
-                    }}
-                    className="shrink-0 flex items-center gap-1 text-xs"
-                  >
-                    <span>ENTER</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </NeobrutalistButton>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+          <form onSubmit={handleLogin} className="space-y-4 font-mono text-xs">
+            <div className="space-y-1">
+              <label className="font-bold uppercase text-[var(--ink)] block flex items-center justify-between">
+                <span>Hospital Node ID</span>
+                <span className="text-[10px] text-gray-500 font-normal">REQUIRED</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. hospital123"
+                value={hospitalId}
+                onChange={(e) => setHospitalId(e.target.value)}
+                required
+                className="w-full bg-neutral-50 border-2 border-[var(--ink)] p-2.5 text-sm font-bold text-[var(--ink)] shadow-[2px_2px_0_var(--ink)] focus:outline-none focus:bg-white"
+              />
+            </div>
 
-        {/* Custom Node Login */}
-        <NeobrutalistCard
-          title="OR ENTER CUSTOM NODE ID"
-          className="bg-neutral-50"
-        >
-          <form onSubmit={handleCustomLogin} className="flex gap-3">
-            <input
-              type="text"
-              placeholder="e.g. hospital_custom_99"
-              value={customId}
-              onChange={(e) => setCustomId(e.target.value)}
-              className="flex-1 bg-white border-2 border-[var(--ink)] p-2 font-mono text-sm shadow-[2px_2px_0_var(--ink)] focus:outline-none"
-            />
-            <NeobrutalistButton type="submit" variant="black" size="sm">
-              CONNECT
+            <div className="space-y-1">
+              <label className="font-bold uppercase text-[var(--ink)] block flex items-center justify-between">
+                <span>Facility Password</span>
+                <span className="text-[10px] text-gray-500 font-normal">REQUIRED</span>
+              </label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full bg-neutral-50 border-2 border-[var(--ink)] p-2.5 text-sm font-bold text-[var(--ink)] shadow-[2px_2px_0_var(--ink)] focus:outline-none focus:bg-white"
+              />
+            </div>
+
+            {error && (
+              <p className="p-2.5 bg-red-100 border-2 border-[var(--accent)] text-[var(--accent-dark)] font-bold text-xs">
+                ⚠️ {error}
+              </p>
+            )}
+
+            <NeobrutalistButton
+              type="submit"
+              variant="primary"
+              size="lg"
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 pt-3 pb-3"
+            >
+              <span>{isLoading ? "AUTHENTICATING..." : "SIGN IN TO NODE"}</span>
+              <ArrowRight className="w-4 h-4" />
             </NeobrutalistButton>
           </form>
         </NeobrutalistCard>
+
+        {/* Demo Credentials Reference Note */}
+        <div className="p-3 bg-neutral-100 border-2 border-[var(--ink)] font-mono text-[11px] space-y-1">
+          <div className="flex items-center gap-1.5 font-bold text-[var(--ink)] uppercase">
+            <KeyRound className="w-3.5 h-3.5 text-[var(--accent)]" />
+            <span>AUTHORIZATION DIRECTORY (DEMO ACCESS)</span>
+          </div>
+          <div className="space-y-0.5 text-gray-700 text-[10px]">
+            <div>• <strong className="text-[var(--ink)]">hospital123</strong> — Sarvodaya General Hospital</div>
+            <div>• <strong className="text-[var(--ink)]">hospital321</strong> — Global Care Medical Centre</div>
+            <div>• <strong className="text-[var(--ink)]">hospital456</strong> — City Care Emergency Center</div>
+            <div>• <strong className="text-[var(--ink)]">hospital789</strong> — Apex Health Institute</div>
+            <div className="pt-1 text-[var(--accent)] font-bold">Password for all nodes: <code className="bg-white px-1 border border-black text-black">password123</code></div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
