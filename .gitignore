@@ -29,6 +29,9 @@ backend/__pycache__
 backend/*.pyc
 backend/venv
 backend/.venv
+backend/*.db
+backend/*.db-wal
+backend/*.db-shm
 
 # General
 .DS_Store
