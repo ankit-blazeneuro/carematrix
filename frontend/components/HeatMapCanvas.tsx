@@ -14,8 +14,8 @@ export function HeatMapCanvas() {
     const loadData = async () => {
       try {
         const data = await api.getHeatmap();
-        setHospitals(data);
-        if (data.length > 0) setSelectedHospital(data[0]);
+        setHospitals(data || []);
+        if (data && data.length > 0) setSelectedHospital(data[0]);
       } catch (err) {
         console.error("Failed to load heatmap data:", err);
       }
@@ -32,7 +32,7 @@ export function HeatMapCanvas() {
   const getDemandColor = (pct: number) => {
     if (pct >= 85) return { bg: "bg-[var(--accent)]", text: "text-white", label: "CRITICAL LOAD" };
     if (pct >= 70) return { bg: "bg-neutral-800", text: "text-white", label: "HEAVY INFLUX" };
-    return { bg: "bg-neutral-400", text: "text-black", label: "OPTIMAL" };
+    return { bg: "bg-neutral-300", text: "text-black", label: "OPTIMAL" };
   };
 
   return (
@@ -58,18 +58,18 @@ export function HeatMapCanvas() {
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 overflow-hidden min-h-0">
         {/* Interactive Cluster Grid & Visual Map (8 cols) */}
-        <div className="lg:col-span-8 neo-card p-0 bg-neutral-900 border-2 border-[var(--ink)] overflow-hidden flex flex-col relative min-h-0">
-          <div className="p-2.5 bg-[var(--ink)] text-white border-b border-white/20 flex items-center justify-between shrink-0">
-            <span className="font-display text-xs tracking-wider uppercase text-[var(--accent)]">
+        <div className="lg:col-span-8 neo-card p-0 bg-neutral-100 border-3 border-[var(--ink)] overflow-hidden flex flex-col relative min-h-0 shadow-[5px_5px_0_var(--ink)]">
+          <div className="p-2.5 bg-white text-[var(--ink)] border-b-2 border-[var(--ink)] flex items-center justify-between shrink-0">
+            <span className="font-display text-xs tracking-wider uppercase text-[var(--accent)] font-bold">
               GEOSPATIAL CLUSTER RADAR (NCR SECTOR-4)
             </span>
-            <span className="text-[10px] font-mono text-white/60">
+            <span className="text-[10px] font-mono font-bold text-gray-600">
               COORDINATES: 28.44°N, 77.01°E
             </span>
           </div>
 
           {/* Grid Canvas */}
-          <div className="flex-1 p-4 flex items-center justify-center relative bg-[radial-gradient(#444_1px,transparent_1px)] [background-size:14px_14px] overflow-y-auto">
+          <div className="flex-1 p-4 flex items-center justify-center relative bg-[radial-gradient(#bbb_1px,transparent_1px)] [background-size:14px_14px] overflow-y-auto">
             <div className="grid grid-cols-3 gap-3 w-full z-10">
               {hospitals.map((hosp) => {
                 const badge = getDemandColor(hosp.demand_pct);
@@ -81,7 +81,7 @@ export function HeatMapCanvas() {
                     className={`neo-card p-3 cursor-pointer transition-all border-2 ${
                       isSelected
                         ? "bg-white border-3 border-[var(--accent)] shadow-[4px_4px_0_var(--accent)]"
-                        : "bg-white hover:bg-neutral-50"
+                        : "bg-white hover:bg-neutral-50 border-[var(--ink)] shadow-[2px_2px_0_var(--ink)]"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
@@ -93,11 +93,11 @@ export function HeatMapCanvas() {
 
                     <div className="space-y-1 font-mono text-[11px] text-[var(--ink)]">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">BOR Load:</span>
+                        <span className="text-gray-500 font-bold">BOR Load:</span>
                         <strong>{hosp.demand_pct}%</strong>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Free Beds:</span>
+                        <span className="text-gray-500 font-bold">Free Beds:</span>
                         <strong className="text-[var(--accent)]">{hosp.available_beds} / {hosp.total_beds}</strong>
                       </div>
 
@@ -111,23 +111,23 @@ export function HeatMapCanvas() {
             </div>
           </div>
 
-          <div className="p-2 bg-[var(--ink)] text-white/70 text-[10px] font-mono border-t border-white/20 flex items-center justify-between shrink-0">
-            <span>NETWORK TELEMETRY: 3 HOSPITALS CONNECTED</span>
+          <div className="p-2 bg-white text-gray-700 text-[10px] font-mono border-t-2 border-[var(--ink)] flex items-center justify-between shrink-0 font-bold">
+            <span>NETWORK TELEMETRY: {hospitals.length} HOSPITALS CONNECTED</span>
             <span className="text-[var(--accent)] font-bold">AUTOMATED RE-ROUTING ACTIVE</span>
           </div>
         </div>
 
         {/* Selected Facility Inspector (4 cols) */}
-        <div className="lg:col-span-4 neo-card p-3 border-2 bg-white flex flex-col justify-between overflow-y-auto min-h-0 space-y-3">
+        <div className="lg:col-span-4 neo-card p-3 border-3 border-[var(--ink)] bg-white flex flex-col justify-between overflow-y-auto min-h-0 space-y-3 shadow-[5px_5px_0_var(--ink)]">
           <div className="space-y-3">
-            <div className="border-b border-[var(--ink)] pb-2">
+            <div className="border-b-2 border-[var(--ink)] pb-2">
               <span className="neo-badge neo-badge-black text-[8px] py-0 mb-1">
                 FACILITY INSPECTOR
               </span>
               <h3 className="font-display text-xl font-bold uppercase text-[var(--ink)]">
                 {selectedHospital ? selectedHospital.name : "SELECT NODE"}
               </h3>
-              <p className="text-[10px] font-mono text-gray-500">
+              <p className="text-[10px] font-mono font-bold text-gray-600">
                 Identifier: {selectedHospital?.id}
               </p>
             </div>
@@ -135,35 +135,35 @@ export function HeatMapCanvas() {
             {selectedHospital && (
               <div className="space-y-2.5 font-mono text-xs">
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 bg-neutral-50 border border-[var(--ink)]">
-                    <span className="text-[9px] text-gray-500 uppercase block">TOTAL CAPACITY</span>
+                  <div className="p-2 bg-neutral-50 border-2 border-[var(--ink)]">
+                    <span className="text-[9px] text-gray-600 font-bold uppercase block">TOTAL CAPACITY</span>
                     <span className="font-display text-xl font-bold text-[var(--ink)]">
                       {selectedHospital.total_beds}
                     </span>
                   </div>
-                  <div className="p-2 bg-neutral-50 border border-[var(--ink)]">
-                    <span className="text-[9px] text-gray-500 uppercase block">AVAILABLE BEDS</span>
+                  <div className="p-2 bg-neutral-50 border-2 border-[var(--ink)]">
+                    <span className="text-[9px] text-gray-600 font-bold uppercase block">AVAILABLE BEDS</span>
                     <span className="font-display text-xl font-bold text-[var(--accent)]">
                       {selectedHospital.available_beds}
                     </span>
                   </div>
                 </div>
 
-                <div className="p-2.5 border border-[var(--ink)] bg-neutral-50 space-y-1">
+                <div className="p-2.5 border-2 border-[var(--ink)] bg-neutral-50 space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase">OCCUPANCY (BOR)</span>
+                    <span className="text-[10px] font-bold uppercase text-[var(--ink)]">OCCUPANCY (BOR)</span>
                     <span className="neo-badge neo-badge-red text-[8px] py-0">
                       {selectedHospital.demand_pct}%
                     </span>
                   </div>
-                  <p className="text-[10px] text-gray-600 leading-tight">
+                  <p className="text-[10px] text-gray-700 leading-tight">
                     {selectedHospital.demand_pct > 85
                       ? "Critical triage capacity threshold exceeded. Real-time patient diversion active."
                       : "Operating within normal regional load parameters."}
                   </p>
                 </div>
 
-                <div className="pt-1 text-[10px] text-gray-500 space-y-0.5 border-t border-gray-200">
+                <div className="pt-1 text-[10px] text-gray-600 font-bold space-y-0.5 border-t border-gray-200">
                   <div>• Latitude: {selectedHospital.lat}° N</div>
                   <div>• Longitude: {selectedHospital.lng}° E</div>
                   <div>• Real-time WebSocket Protocol Active</div>
