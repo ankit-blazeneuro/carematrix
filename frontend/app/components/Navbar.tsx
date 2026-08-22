@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CareMatrixLogo } from "@/components/logo";
 
 export default function Navbar() {
   return (
@@ -8,6 +9,7 @@ export default function Navbar() {
       <nav className="w-full max-w-3xl flex items-center justify-between px-6 py-3 rounded-xl bg-background/60 backdrop-blur-md shadow-sm">
         {/* Logo - Left */}
         <Link href="/" className="flex items-center gap-2">
+          <CareMatrixLogo className="w-6 h-6 text-blue-600" />
           <span className="text-xl font-bold tracking-tight text-foreground">
             Care<span className="text-blue-600">Matrix</span>
           </span>
